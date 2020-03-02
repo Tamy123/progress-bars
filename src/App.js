@@ -1,47 +1,71 @@
-import React, { useState, useEffect, useRef } from "react";
-import Progress from "react-progressbar";
-import { Line } from "rc-progress";
-import "rc-progress/assets/index.css";
-import "./App.css";
+import React, { useState, useEffect } from 'react';
+import ProgressBar from './components/progressBar';
+import Dropdown from './components/dropdown';
+import Button from './components/button';
+import httpService from './utils/http.service';
+import './App.css';
 
 function App() {
-  const buttons = [22, 14, -24, -18];
-  const bars = [12, 11, 60, 11];
-  const [myBar, setMyBar] = useState([
-    { bar: 12, color: "blue" },
-    { bar: 11, color: "blue" },
-    { bar: 60, color: "blue" },
-    { bar: 11, color: "blue" }
-  ]);
-  const [percent, setPercent] = useState(10);
-
-  const [color, setColor] = useState("blue");
   const [progressBar, setProgressBar] = useState(0);
-  const barRef = useRef(null);
-  // const [value, setValue] = useState(10);
+  const [result, setResult] = useState({});
+  const [bars, setBars] = useState([]);
+  const [limit, setLimit] = useState('');
 
-  const barDependency = myBar[progressBar].bar;
+  const baseLimit = 0;
+  const barDependency = bars[progressBar] && bars[progressBar].bar;
 
   useEffect(() => {
-    if (myBar[progressBar].bar > 100) {
-      // debugger
-      let newArr = [...myBar];
-      newArr[progressBar].color = "red";
-      setMyBar(newArr);
-    } else {
-      let newArr = [...myBar];
-      newArr[progressBar].color = "blue";
-      setMyBar(newArr);
-      // setColor("blue");
+    setBars(bars => {
+      let copyArr = [...bars];
+      result.bars &&
+        result.bars.forEach((bar, index) => {
+          return (copyArr[index] = { bar: bar, color: 'blue' });
+        });
+      return copyArr;
+    });
+  }, [result]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        httpService.init();
+        const res = await httpService.get();
+        setResult(res.data);
+        setLimit(res.data.limit);
+      } catch (err) {
+        console.log(err);
+      }
+    };
+    fetchData();
+  }, []);
+
+  useEffect(() => {
+    if (bars.length !== 0) {
+      if (bars[progressBar].bar > 100) {
+        updateArray('color', null, null, 'red');
+      } else {
+        updateArray('color', null, null, 'blue');
+      }
     }
   }, [barDependency]);
 
   const containerStyle = {
-    width: "250px"
+    width: '250px'
   };
 
-  const baseLimit = 0;
-  const limit = 150;
+  const updateArray = (key, value, limit, color) => {
+    const newArr = [...bars];
+    if (value) {
+      newArr[progressBar][key] = newArr[progressBar][key] + value;
+      setBars(newArr);
+    } else if (limit || limit === 0) {
+      newArr[progressBar][key] = limit;
+      setBars(newArr);
+    } else if (color) {
+      newArr[progressBar][key] = color;
+      setBars(newArr);
+    }
+  };
 
   const handleState = value => {
     const res = Math.sign(value);
@@ -49,91 +73,36 @@ function App() {
   };
 
   const incrementState = value => {
-    // const colorMap = ['#3FC7FA', '#85D262', '#FE8C6A'];
-    // const value = parseInt(Math.random() * 100, 10);
-    if (myBar[progressBar].bar + value < limit) {
-      let newArr = [...myBar];
-      newArr[progressBar].bar = myBar[progressBar].bar + value;
-      setMyBar(newArr);
-
-    } else if (myBar[progressBar].bar + value > limit) {
-      let newArr = [...myBar];
-      newArr[progressBar].bar = limit;
-      setMyBar(newArr);
+    if (bars[progressBar].bar + value < limit) {
+      updateArray('bar', value);
+    } else if (bars[progressBar].bar + value >= limit) {
+      updateArray('bar', null, limit);
     }
-    // percent < limit && setPercent(percent + value);
-    // percent > 100 ? setColor('red') : setColor('blue');
   };
 
   const decrementState = value => {
-    if (myBar[progressBar].bar + value > baseLimit) {
-      let newArr = [...myBar];
-      newArr[progressBar].bar = myBar[progressBar].bar + value;
-      setMyBar(newArr);
-      // setPercent(percent + value);
-    } else if (myBar[progressBar].bar + value < baseLimit) {
-      let newArr = [...myBar];
-      newArr[progressBar].bar = baseLimit;
-      setMyBar(newArr);
-      //  setPercent(baseLimit);
+    if (bars[progressBar].bar + value > baseLimit) {
+      updateArray('bar', value);
+    } else if (bars[progressBar].bar + value <= baseLimit) {
+      updateArray('bar', null, baseLimit);
     }
-    // const colorMap = ['#3FC7FA', '#85D262', '#FE8C6A'];
-    // const value = parseInt(Math.random() * 100, 10);
-    // percent > baseLimit && setPercent(percent + value);
-    // percent > 100 ? setColor('red') : setColor('blue');
   };
 
-  // const buttons = [22, 14, -24, -18];
-  // const bars = [12, 11, 60, 11];
-
   return (
-    <div className="App">
-      <div style={containerStyle}>
-        {bars.map((bar, index) => {
-          return (
-            <div>
-              <h3>Line Progress {myBar[index].bar}%</h3>
-              <Line
-                key={index}
-                percent={myBar[index].bar}
-                strokeWidth="4"
-                strokeColor={myBar[index].color}
-              />
-            </div>
-          );
-        })}
+    <div className="flex-box">
+      <div className="App">
+        <div style={containerStyle}>
+          {bars.length !== 0 ? (
+            <ProgressBar bars={bars} />
+          ) : (
+            <h1>Loading...</h1>
+          )}
+        </div>
+        {bars.length !== 0 && (
+          <Dropdown result={result} setProgressBar={setProgressBar} />
+        )}
+        <Button result={result} handleState={handleState} />
       </div>
-      {/* <Progress completed={counter} color="red"/>
-      {counter}
-      <br/>
-      <button onClick={() => setCounter(80)}>Increment Counter</button> */}
-      <select
-        id="bars"
-        ref={barRef}
-        onChange={e => setProgressBar(e.target.value)}
-      >
-        {bars.map((item, index) => (
-          <option value={index}>progress bar #{index + 1}</option>
-        ))}
-      </select>
-
-      {buttons.map(button => {
-        return (
-          <button type="button" onClick={() => handleState(button)}>
-            {button > 0 ? `+${button}` : button}
-          </button>
-        );
-      })}
-      {/* <p>
-        <button type="button" onClick={incrementState}>
-          Increment State by {value}%
-        </button>
-      </p>
-      <p>
-        <button type="button" onClick={decrementState}>
-          Decrement State by {value}%
-        </button>
-      </p> */}
     </div>
   );
 }
